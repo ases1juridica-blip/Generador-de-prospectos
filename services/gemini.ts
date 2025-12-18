@@ -1,5 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
-import { Lead, GeneratedEmail } from "../types";
+
+import { GoogleGenAI, Type } from "@google/genai";
+import { Lead, GeneratedOutreach } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -9,38 +10,33 @@ export const findProspects = async (
   painPoints: string[]
 ): Promise<Lead[]> => {
   const prompt = `
-    Actúa como un experto investigador de leads B2B para la agencia "JGroupTech".
+    Actúa como un Auditor de Ventas Senior para JGroupTech.
+    Tu misión es encontrar 10 negocios reales de "${industry}" en "${location}" que estén PERDIENDO DINERO debido a mala atención al cliente reflejada en Google Maps.
     
-    Objetivo: Encontrar 5-10 negocios del tipo "${industry}" en "${location}".
+    CRITERIO DE SELECCIÓN: Negocios con más de 10 reseñas donde los usuarios mencionen "no contestan", "espera larga", "mala atención" o "imposible agendar".
     
-    Criterios de Búsqueda:
-    1. Prioridad: Negocios con reseñas en Google Maps o menciones en redes sociales sobre mala atención telefónica, servicio lento o que no contestan.
-    2. IMPORTANTE: Intenta extraer información de contacto si está visible públicamente (Teléfono, Web, y si es posible inferir un nombre de contacto o email de la descripción).
+    PARA CADA NEGOCIO DEBES CALCULAR:
+    - estimatedMonthlyLoss: Una estimación conservadora en USD de cuánto dinero pierde el negocio mensualmente por llamadas no contestadas o citas perdidas (ej. 1500, 5000, 10000).
     
-    Puntos de dolor a buscar:
-    ${painPoints.map((p) => `- ${p}`).join("\n")}
-    
-    Formato de Salida (JSON ARRAY EXACTO):
-    Devuelve SOLAMENTE un array JSON.
-    Estructura requerida:
+    Formato de Salida (JSON ARRAY):
     [
       {
-        "name": "Nombre del Negocio",
+        "name": "Nombre Empresa",
         "category": "${industry}",
         "city": "${location}",
         "address": "Dirección completa",
-        "phone": "Número de teléfono (si hay)",
-        "email": "Email (si se encuentra en web/snippet, sino null)",
-        "ownerName": "Nombre del dueño (si se menciona en reviews/web, sino 'Gerente General')",
-        "managerName": "Nombre del encargado (si se menciona, sino null)",
-        "rating": 3.5,
-        "userRatingCount": 100,
-        "websiteUri": "url web",
-        "googleMapsUri": "url maps",
+        "phone": "Teléfono",
+        "email": "Email si existe",
+        "ownerName": "Nombre del Dueño/Gerente",
+        "rating": 2.5,
+        "userRatingCount": 40,
+        "websiteUri": "url",
+        "googleMapsUri": "url",
         "sentimentAnalysis": {
-          "score": 85,
-          "summary": "Resumen del problema (ej: Clientes se quejan de que nunca contestan).",
-          "painPoints": ["no contestan", "espera larga"]
+          "score": 92,
+          "summary": "Resumen crítico del dolor del cliente",
+          "painPoints": ["No contestan", "Mala atención"],
+          "estimatedMonthlyLoss": 3500
         }
       }
     ]
@@ -48,67 +44,71 @@ export const findProspects = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        // Habilitamos Google Maps y Google Search para mayor cobertura (redes sociales, web, etc)
-        tools: [{ googleMaps: {}, googleSearch: {} }],
-        temperature: 0.4,
+        tools: [{ googleMaps: {} }],
+        temperature: 0.3,
       },
     });
 
     let jsonStr = response.text || "[]";
     jsonStr = jsonStr.replace(/```json/g, "").replace(/```/g, "").trim();
-
     const rawLeads = JSON.parse(jsonStr);
 
     return rawLeads.map((lead: any, index: number) => ({
       ...lead,
       id: `lead-${Date.now()}-${index}`,
-      contactStatus: "new",
-      // Fallbacks to ensure valid CSV data
-      ownerName: lead.ownerName || "Gerente Comercial",
-      city: location,
-      category: industry
+      contactStatus: "new"
     }));
   } catch (error) {
     console.error("Error finding prospects:", error);
-    throw new Error("No se pudieron obtener prospectos. Intenta ser más específico con la ubicación.");
+    throw new Error("Error en la conexión con el satélite de inteligencia.");
   }
 };
 
-export const generateColdOutreach = async (
-  lead: Lead,
-  myAgencyName: string,
-  myAgencyUrl: string
-): Promise<GeneratedEmail> => {
+export const generateColdOutreach = async (lead: Lead): Promise<GeneratedOutreach> => {
   const prompt = `
-    Escribe un correo electrónico de venta en frío altamente personalizado para:
-    Negocio: "${lead.name}"
-    Contacto: "${lead.ownerName || 'Gerente'}"
+    Eres Jairo Segura, CEO de JGroupTech Agency. 
+    Redacta una propuesta comercial "Imposible de Ignorar" para ${lead.name} dirigida a ${lead.ownerName || 'la Gerencia'}.
     
-    Contexto:
-    Soy una agencia de IA llamada "${myAgencyName}" (${myAgencyUrl}).
-    Ofrecemos Agentes de IA para resolver: "${lead.sentimentAnalysis.summary}".
+    DATO CLAVE: Nuestra auditoría estima que están perdiendo $${lead.sentimentAnalysis.estimatedMonthlyLoss} USD mensuales por fallas en su atención al cliente.
+    SOLUCIÓN: Agentes de IA que operan 24/7.
+
+    Firma: 
+    "Estoy listo para ayudarle a recuperar esos ingresos.
     
-    Instrucciones:
-    - Usa un tono profesional.
-    - El objetivo es agendar una demo.
-    
-    Salida JSON:
+    Atentamente,
+    Jairo Segura
+    CEO, JGroupTech Agency
+    Dubái | Miami | Bogotá | La Paz"
+
+    FORMATO JSON:
     {
-      "subject": "Asunto del correo",
-      "body": "Cuerpo del correo"
+      "subject": "Asunto magnético mencionando la pérdida financiera",
+      "body": "Cuerpo del email persuasivo y profesional",
+      "whatsappMessage": "Mensaje de WhatsApp directo al grano con CTA",
+      "smsMessage": "SMS recordatorio ultra corto"
     }
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          subject: { type: Type.STRING },
+          body: { type: Type.STRING },
+          whatsappMessage: { type: Type.STRING },
+          smsMessage: { type: Type.STRING }
+        },
+        required: ["subject", "body", "whatsappMessage", "smsMessage"]
+      }
     },
   });
 
-  return JSON.parse(response.text);
+  return JSON.parse(response.text || "{}");
 };

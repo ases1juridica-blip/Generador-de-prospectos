@@ -1,13 +1,14 @@
+
 export interface Lead {
   id: string;
   name: string;
-  category: string; // e.g., Odontología, Restaurante
+  category: string;
   city: string;
   address: string;
   phone?: string;
-  email?: string; // Try to find via AI
-  ownerName?: string; // Try to find via AI
-  managerName?: string; // Try to find via AI
+  email?: string;
+  ownerName?: string;
+  managerName?: string;
   rating: number | null;
   userRatingCount: number | null;
   websiteUri?: string;
@@ -16,8 +17,15 @@ export interface Lead {
     score: number; // 0 to 100
     summary: string;
     painPoints: string[];
+    estimatedMonthlyLoss: number; // USD estimated loss due to bad service
   };
   contactStatus: 'new' | 'drafted' | 'contacted';
+  personalizedDraft?: {
+    subject: string;
+    body: string;
+    whatsappMessage: string;
+    smsMessage: string;
+  };
 }
 
 export interface SearchParams {
@@ -26,7 +34,9 @@ export interface SearchParams {
   painPoints: string[];
 }
 
-export interface GeneratedEmail {
+export interface GeneratedOutreach {
   subject: string;
   body: string;
+  whatsappMessage: string;
+  smsMessage: string;
 }

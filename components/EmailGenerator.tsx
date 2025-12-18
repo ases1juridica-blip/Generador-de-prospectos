@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Sparkles, Loader2 } from 'lucide-react';
-import { Lead, GeneratedEmail } from '../types';
+// Fix: Import GeneratedOutreach which is the correct exported member from types.ts
+import { Lead, GeneratedOutreach } from '../types';
 import { generateColdOutreach } from '../services/gemini';
 
 interface EmailGeneratorProps {
@@ -9,14 +10,16 @@ interface EmailGeneratorProps {
 }
 
 export const EmailGenerator: React.FC<EmailGeneratorProps> = ({ lead, onClose }) => {
-  const [email, setEmail] = useState<GeneratedEmail | null>(null);
+  // Fix: Use GeneratedOutreach type for the state
+  const [email, setEmail] = useState<GeneratedOutreach | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchEmail = async () => {
       try {
-        const result = await generateColdOutreach(lead, "JGroupTech", "https://agencia.jgrouptech.com");
+        // Fix: generateColdOutreach expects only 1 argument.
+        const result = await generateColdOutreach(lead);
         setEmail(result);
       } catch (error) {
         console.error(error);
