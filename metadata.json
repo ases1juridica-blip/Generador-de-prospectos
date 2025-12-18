@@ -1,0 +1,7 @@
+{
+  "name": "JGroupTech Lead Hunter",
+  "description": "Herramienta de prospección inteligente para agencias de IA. Identifica clientes potenciales con problemas de atención al cliente utilizando Google Maps y Gemini AI.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
